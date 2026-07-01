@@ -1,4 +1,4 @@
-# Copyright (c) 2020-2024 by Fraunhofer Institute for Energy Economics
+# Copyright (c) 2020-2026 by Fraunhofer Institute for Energy Economics
 # and Energy System Technology (IEE), Kassel, and University of Kassel. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be found in the LICENSE file.
 
@@ -17,6 +17,10 @@ from pandapipes.idx_branch import branch_cols
 from pandapipes.idx_node import node_cols
 from pandapipes.test.api.test_convert_format import found_versions, folder, minimal_version_two_nets
 
+try:
+    from pandapower import dataframes_equal
+except ImportError:
+    from pandapower.toolbox.comparison import dataframes_equal
 
 def create_base_net(oos):
     net = pandapipes.create_empty_network(fluid="lgas")
@@ -46,30 +50,30 @@ def create_base_net(oos):
     pandapipes.create_ext_grid(net, junction=junction1, p_bar=1.1, t_k=293.15,
                                name="Grid Connection")
     pandapipes.create_pipe_from_parameters(net, from_junction=junction1, to_junction=junction2,
-                                           length_km=10, diameter_m=0.3, name="Pipe 1",
+                                           length_km=10, inner_diameter_mm=300, name="Pipe 1",
                                            geodata=[(0, 0), (2, 0)], in_service=not oos)
     pandapipes.create_pipe_from_parameters(net, from_junction=junction2, to_junction=junction3,
-                                           length_km=2, diameter_m=0.3, name="Pipe 2",
+                                           length_km=2, inner_diameter_mm=300, name="Pipe 2",
                                            geodata=[(2, 0), (2, 4), (7, 4)], in_service=not oos)
     pandapipes.create_pipe_from_parameters(net, from_junction=junction2, to_junction=junction4,
-                                           length_km=2.5, diameter_m=0.3, name="Pipe 3",
+                                           length_km=2.5, inner_diameter_mm=300, name="Pipe 3",
                                            geodata=[(2, 0), (2, -4), (7, -4)], in_service=not oos)
     pandapipes.create_pipe_from_parameters(net, from_junction=junction3, to_junction=junction5,
-                                           length_km=1, diameter_m=0.3, name="Pipe 4",
+                                           length_km=1, inner_diameter_mm=300, name="Pipe 4",
                                            geodata=[(7, 4), (7, 3), (5, 3)])
     pandapipes.create_pipe_from_parameters(net, from_junction=junction4, to_junction=junction6,
-                                           length_km=1, diameter_m=0.3, name="Pipe 5",
+                                           length_km=1, inner_diameter_mm=300, name="Pipe 5",
                                            geodata=[(7, -4), (7, -3), (5, -3)])
     pandapipes.create_pipe_from_parameters(net, from_junction=junction7, to_junction=junction8,
-                                           length_km=1, diameter_m=0.3, name="Pipe 6",
+                                           length_km=1, inner_diameter_mm=300, name="Pipe 6",
                                            geodata=[(9, -4), (9, 0)])
     pandapipes.create_pipe_from_parameters(net, from_junction=junction7, to_junction=junction8,
-                                           length_km=1, diameter_m=0.3, name="Pipe 7",
+                                           length_km=1, inner_diameter_mm=300, name="Pipe 7",
                                            geodata=[(9, 0), (9, 4)])
 
-    pandapipes.create_valve(net, from_junction=junction5, to_junction=junction6, diameter_m=0.05,
+    pandapipes.create_valve(net, junction5, junction6, et='ju', inner_diameter_mm=50,
                             opened=True)
-    pandapipes.create_heat_exchanger(net, junction3, junction8, diameter_m=0.3, qext_w=20000)
+    pandapipes.create_heat_exchanger(net, junction3, junction8, inner_diameter_mm=300, qext_w=20000)
     pandapipes.create_sink(net, junction=junction4, mdot_kg_per_s=0.545, name="Sink 1")
     pandapipes.create_source(net, junction=junction3, mdot_kg_per_s=0.234)
     pandapipes.create_pump_from_parameters(net, junction4, junction7, 'P1')
@@ -78,7 +82,7 @@ def create_base_net(oos):
     if oos:
         pandapipes.create_ext_grid(net, junction=junction1, p_bar=1.1, t_k=293.15,
                                    name="Grid Connection", in_service=False)
-        pandapipes.create_heat_exchanger(net, junction3, junction8, diameter_m=0.3, qext_w=20000,
+        pandapipes.create_heat_exchanger(net, junction3, junction8, inner_diameter_mm=300, qext_w=20000,
                                          in_service=False)
         pandapipes.create_sink(net, junction=junction4, mdot_kg_per_s=0.545, name="Sink 2",
                                in_service=False)
@@ -145,9 +149,13 @@ def create_net_changed_indices(base_net_is_wo_pumps):
     net.junction_geodata.index = new_junction_indices
     for n_el in ["sink", "source", "ext_grid"]:
         net[n_el].junction = np.array([junction_lookup[k] for k in net[n_el].junction], dtype="int")
-    for br_el in ["pipe", "valve", "heat_exchanger", "pump", "press_control"]:
+
+    for br_el in ["pipe", "heat_exchanger", "pump", "press_control"]:
         for junc_typ in ["from_junction", "to_junction"]:
             net[br_el][junc_typ] = np.array([junction_lookup[k] for k in net[br_el][junc_typ]],
+                                            dtype="int")
+    for junc_typ in ["junction", "element"]:
+            net.valve[junc_typ] = np.array([junction_lookup[k] for k in net.valve[junc_typ]],
                                             dtype="int")
     net.press_control.controlled_junction = np.array(
         [junction_lookup[k] for k in net.press_control.controlled_junction], dtype="int")
@@ -169,9 +177,14 @@ def get_junction_indices(net, branch_comp=("pipe", "valve", "heat_exchanger", "p
                          node_comp=("ext_grid", "source", "sink")):
     junction_index = copy.deepcopy(net.junction.index.values)
     previous_junctions = {k: dict() for k in branch_comp + node_comp}
+
     for bc in branch_comp:
-        previous_junctions[bc]["from_junction"] = copy.deepcopy(net[bc]["from_junction"])
-        previous_junctions[bc]["to_junction"] = copy.deepcopy(net[bc]["to_junction"])
+        if bc == 'valve':
+            previous_junctions[bc]["junction"] = copy.deepcopy(net[bc]["junction"])
+            previous_junctions[bc]["element"] = copy.deepcopy(net[bc]["element"])
+        else:
+            previous_junctions[bc]["from_junction"] = copy.deepcopy(net[bc]["from_junction"])
+            previous_junctions[bc]["to_junction"] = copy.deepcopy(net[bc]["to_junction"])
     for nc in node_comp:
         previous_junctions[nc]["junction"] = copy.deepcopy(net[nc]["junction"])
     return junction_index, previous_junctions
@@ -194,9 +207,26 @@ def test_reindex_junctions():
             if len(junction_cols):
                 for junction_col in junction_cols:
                     assert all(net[elm][junction_col] == net_orig[elm][junction_col] + to_add)
-            if elm == "junction":
+            if (elm == "junction") | (elm == 'element'):
                 assert all(np.array(list(net[elm].index)) == np.array(list(
                     net_orig[elm].index)) + to_add)
+
+
+def test_reindex_pipes():
+    net_orig = nw.simple_gas_networks.gas_tcross1()
+    net = nw.simple_gas_networks.gas_tcross1()
+
+    pandapipes.create_valve(net_orig, junction=0, element=0, et='pi', inner_diameter_mm=100)
+    pandapipes.create_valve(net, junction=0, element=0, et='pi', inner_diameter_mm=100)
+
+    to_add = 5
+    new_pipe_idxs = np.array(list(net.pipe.index)) + to_add
+    lookup = dict(zip(net["pipe"].index.values, new_pipe_idxs))
+    # a more complexe junction_lookup of course should also work, but this one is easy to check
+    pandapipes.reindex_pipes(net, lookup)
+
+    assert np.all(net["pipe"].index == net_orig["pipe"].index + to_add)
+    assert np.all(net["valve"]["element"].to_numpy() ==  net_orig["valve"]["element"].to_numpy() + to_add)
 
 
 def test_fuse_junctions(create_net_changed_indices):
@@ -239,7 +269,7 @@ def test_select_subnet(base_net_is_wo_pumps):
     assert len(same_net.component_list) == len(net.component_list)
     assert set(same_net.component_list) == set(net.component_list)
     for comp in net.component_list:
-        assert pandapower.dataframes_equal(net[comp.table_name()], same_net[comp.table_name()])
+        assert dataframes_equal(net[comp.table_name()], same_net[comp.table_name()])
 
     same_net2 = pandapipes.select_subnet(net, net.junction.index, include_results=True,
                                          keep_everything_else=True)
@@ -257,11 +287,12 @@ def test_select_subnet(base_net_is_wo_pumps):
 
     # check length of results
     net = nw.gas_tcross2()
-    max_iter_hyd = 2
+    max_iter_hyd = 3
     pandapipes.pipeflow(net, max_iter_hyd=max_iter_hyd)
     net2 = pandapipes.select_subnet(net, net.junction.index[:-3], include_results=True)
     for comp in net.component_list:
-        assert len(net2["res_" + comp.table_name()]) == len(net2[comp.table_name()])
+        if len(net[comp.table_name()]):
+            assert len(net2["res_" + comp.table_name()]) == len(net2[comp.table_name()])
     assert len(net.junction) == len(net2.junction) + 3
 
 def test_pit_extraction():
@@ -274,7 +305,10 @@ def test_pit_extraction():
     for name in names:
         filename = os.path.join(folder, "example_%s%s.json" % (max_ver, name))
         net = pandapipes.from_json(filename)
-        max_iter_hyd = 10 if '_water' in name else 5
+        if not "_gas" in name:
+            pandapipes.create_ext_grid(net, junction=4, p_bar=6, t_k=290, name="External Grid 2", index=None)
+            pandapipes.create_ext_grid(net, junction=5, p_bar=5, t_k=290, name="External Grid 3")
+        max_iter_hyd = 11 if '_water' in name else 6
         pandapipes.pipeflow(net, max_iter_hyd=max_iter_hyd)
 
         node_table, branch_table = pandapipes.get_internal_tables_pandas(net)

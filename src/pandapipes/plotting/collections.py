@@ -1,4 +1,4 @@
-# Copyright (c) 2020-2024 by Fraunhofer Institute for Energy Economics
+# Copyright (c) 2020-2026 by Fraunhofer Institute for Energy Economics
 # and Energy System Technology (IEE), Kassel, and University of Kassel. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be found in the LICENSE file.
 
@@ -413,8 +413,23 @@ def create_valve_collection(net, valves=None, size=5., junction_geodata=None, in
 
     valve_table = net.valve.loc[valves]
 
+    #check because of new valve structure
+
+    pipe_from = net.pipe["from_junction"].to_numpy()
+    pipe_to = net.pipe["to_junction"].to_numpy()
+    elements = valve_table["element"].to_numpy()
+    junction = valve_table["junction"].to_numpy()
+    et = valve_table["et"].to_numpy()
+    element_values = elements.copy()
+    pi_mask = et == "pi"
+    element_values[pi_mask] = np.where(
+        pipe_from[elements[pi_mask]] == junction[pi_mask],
+        pipe_to[elements[pi_mask]],
+        pipe_from[elements[pi_mask]]
+    )
+
     coords, valves_with_geo = coords_from_node_geodata(
-        valves, valve_table.from_junction.values, valve_table.to_junction.values,
+        valves, valve_table.junction.values, element_values,
         junction_geodata if junction_geodata is not None else net["junction_geodata"], "valve",
         "Junction")
 

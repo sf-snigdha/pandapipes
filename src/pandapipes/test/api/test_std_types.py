@@ -1,8 +1,7 @@
-# Copyright (c) 2020-2024 by Fraunhofer Institute for Energy Economics
+# Copyright (c) 2020-2026 by Fraunhofer Institute for Energy Economics
 # and Energy System Technology (IEE), Kassel, and University of Kassel. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be found in the LICENSE file.
-
-
+import pandas as pd
 import pytest
 
 import pandapipes
@@ -197,44 +196,42 @@ def test_copy_std_types_from_net_pipe():
 #     assert len(fitting_type) == 0
 
 
-@pytest.mark.xfail(reason="The standard type library has not yet been well integrated into "
-                          "the pandapipes table structure, as e.g. the diameter in the std_types "
-                          "is given as inner_diameter_mm, while it is given in the table as "
-                          "diameter_m.")
 def test_change_type_pipe():
     net = pandapipes.create_empty_network()
     w1 = 82
     do1 = 99.5
     di1 = 87.5
     rat1 = 16.33
+    k1 = 0.01
     mat = "GGG"
     name1 = "test_pipe1"
 
     typdata1 = {"standard_dimension_ratio": rat1, "material": mat, "inner_diameter_mm": di1,
-                "outer_diameter_mm": do1, "nominal_width_mm": w1}
+                "outer_diameter_mm": do1, "nominal_width_mm": w1, "k_mm": k1}
     pandapipes.create_std_type(net, typedata=typdata1, std_type_name=name1, component="pipe")
 
     w2 = 125
     do2 = 144.0
     di2 = 131.6
     rat2 = 23.23
+    k2 = 0.02
     mat = "GGG"
     name2 = "test_pipe2"
 
     typdata2 = {"standard_dimension_ratio": rat2, "material": mat, "inner_diameter_mm": di2,
-                "outer_diameter_mm": do2, "nominal_width_mm": w2}
+                "outer_diameter_mm": do2, "nominal_width_mm": w2, "k_mm": k2}
     pandapipes.create_std_type(net, typedata=typdata2, std_type_name=name2, component="pipe")
 
     j1 = pandapipes.create_junction(net, pn_bar=1, tfluid_k=293)
     j2 = pandapipes.create_junction(net, pn_bar=1, tfluid_k=293)
     pid = pandapipes.create_pipe(net, j1, j2, name1, 1.)
 
-    assert net.pipe.diameter_m.at[pid] == di1 / 1000
+    assert net.pipe.inner_diameter_mm.at[pid] == di1
     assert net.pipe.std_type.at[pid] == name1
 
     pandapipes.change_std_type(net, pid, name2, component="pipe")
 
-    assert net.pipe.diameter_m.at[pid] == di2 / 1000
+    assert net.pipe.inner_diameter_mm.at[pid] == di2
     assert net.pipe.std_type.at[pid] == name2
 
 
@@ -313,8 +310,9 @@ def test_available_std_types():
 
     typdatas = {"typ1": typdata, "typ2": typdata}
     pandapipes.create_std_types(net, component="pipe", type_dict=typdatas)
-    av = pandapipes.available_std_types(net, component="pipe")
-    assert av.to_dict(orient="index") == net.std_types["pipe"]
+    av = pandapipes.available_std_types(net, component="pipe").sort_index()
+    types_net = pd.DataFrame.from_dict(net.std_types["pipe"], orient="index").sort_index()
+    pd.testing.assert_frame_equal(av, types_net)
 
 
 if __name__ == "__main__":

@@ -1,16 +1,100 @@
 Change Log
 =============
+[upcoming release] - 2026-..-..
+-------------------------------
 
-- [FIXED] some imports from pandapower
+[0.14.0] - 2026-05-26
+-------------------------------
+- [FIXED] fixed internal active node lookup in pipeflow
+- [FIXED] temperature TEXT of all components set to ambient temperature
+- [FIXED] incorrect enthalpy calculation
+- [FIXED] circ pumps not of type 'pt' or 't' no longer override TOUTINIT
+- [FIXED] compatibility fixes for pandas 2.2.*
+- [FIXED] fixed incorrect tolerance assignment for pressure and mass flow
+- [FIXED] prevented propagation of NaNs within pipeflow
+- [FIXED] index error in press controller
+- [CHANGED] updated corporate design
+- [CHANGED] replaced `diameter_m` with `inner_diameter_mm`
+- [CHANGED] switched diameter unit from m to mm
+- [CHANGED] moved `k_mm` to standard types
+- [ADDED] added `outer_diameter_mm` parameter
+- [ADDED] added previous PIT storage for transient simulations
+- [ADDED] added rerun logic for single retry if pipeflow did not converge or results are invalid
+- [ADDED] standard types now include u-value, configurable per unit length or area
+- [ADDED] added function to retrieve absolute friction losses along a pipe
+- [ADDED] connectivity check now distinguishes between directed and undirected components
+- [ADDED] added support for multiple pressure control modes in STANET converter
+- [ADDED] added sector information to pandapipes networks
+- [ADDED] standard types can now be differentiated by sector
+- [ADDED] added component filtering by sector
+- [ADDED] added placeholder if connectivity re-check is required
+- [ADDED] added Isoplus standard types for heat networks
+
+[0.13.0] - 2026-01-16
+-------------------------------
+- [ADDED] enabling connection of valves directly to pipes besides connection between two junctions
+- [ADDED] tutorial for combining DHNx package and pandapipes
+- [ADDED] tutorial for output writer for timeseries simulations
+- [ADDED] new and updated district heating example networks
+- [ADDED] thermal numba calculation
+- [CHANGED] Improve readability of setting pipeflow options
+- [CHANGED] reindex functions to be more general
+- [CHANGED] Colebrook-White friction model now uses scipy.optimize.newton for solving the equation
+- [CHANGED] Fluid properties compressibility and viscosity can now process pressure and temperature as inputs, if given the "allow_2d" attribute
+- [CHANGED] Temperature change along pipes now based on exponential function and does not use qext_w anymore
+- [CHANGED] pandapower dependency tag to a strict version
+- [FIXED] Default compressibility model in STANET converter now set to "linear" to avoid Exceptions
+- [FIXED] pipeflow error
+- [FIXED] errors in combination of controller and transient heat calculation
+- [REMOVED] branch_wzerolength_models.py
+- [REMOVED] python 3.9 support
+
+[0.12.0] - 2025-06-27
+-------------------------------
+- [ADDED] transient heat transfer timeseries simulation
+- [ADDED] pressure_control_trace in simple_plotly
+- [ADDED] explicit call of Sphinx-Config file
+- [ADDED] possibility for heat consumer to be considered in nxgraph
+- [CHANGED] loading of JSON files with unknown objects as simple dicts is possible now
+- [CHANGED] GitHub Actions test workflow to speed up execution time
+- [CHANGED] removed duplicated code from calculate_darivates_thermal
+- [CHANGED] variable names "VLRLCONNECT" to "FLOW_RETURN_CONNECT"
+- [CHANGED] heat_consumer improved stability
+- [CHANGED] e2n renaming in documentation
+- [CHANGED] Correct controller documentation
+- [CHANGED] avoid bool(in_service) for bulk create functions
+- [CHANGED] buildup igraph
+- [CHANGED] default output writer to log only existing components to avoid errors
+- [FIXED] docs_check test pipeline
+- [FIXED] a bug in bidirectional calculation for timeseries calculations for timesteps with qext_w=0
+- [FIXED] imports and dependencies from pandapower
+- [FIXED] correction of how to handle input temperature at circ pumps
+
+[0.11.0] - 2024-11-07
+-------------------------------
 - [ADDED] heat_consumer plotting
 - [ADDED] variable "u_w_per_m2k" to std_type pipe
 - [ADDED] standard district heating pipe types
 - [ADDED] support for Python 3.12
 - [ADDED] t_outlet_k to result tables of branch components
+- [ADDED] relying tests, to check the ability to work with pandapower develop
+- [ADDED] bidirectional calculation mode for heat calculations
+- [CHANGED] heat_consumer to enable temperature control
 - [CHANGED] switched from setup.py to pyproject.toml
 - [CHANGED] variable "alpha_w_per_m2k" to "u_w_per_m2k"
+- [CHANGED] option "all" for pipeflow heat calculations to "sequential", the new option is "bidirectional"
+- [CHANGED] volume flow in result tables instead of normalized volume flow for non gas fluids
+- [CHANGED] introduction of slack mass flow into nodes as solved variable
+- [CHANGED] circulation pumps are now branches and thus cannot generate or consume mass
 - [FIXED] Pressure plot not working for circ pump
 - [FIXED] volume flow rate for incompressible fluids based on real density, thus in this case results are renamed from "vdot_norm_m3_per_s" to "vdot_m3_per_s"
+- [FIXED] some imports from pandapower
+- [FIXED] NAN to nan because of numpy changes
+- [FIXED] if velocity in a branch is negative to get corrected nodes from the branch pit
+- [FIXED] plot pressure profile not working for circulation pump sources
+- [FIXED] Infeed switches are considered correctly
+- [FIXED] Heat consumers with qext_w = 0 and temperature control ignore temperature set points
+- [FIXED] alpha also applied to mdot
 - [REMOVED] support for Python 3.8 due to EOL
 
 
